@@ -8,11 +8,60 @@
 #include "Function.h"
 #include "ChatRoomOperate.h"
 #include "CAutoFunction.h"
+#include "CPublic.h"
 #include "SelfInformation.h"
 #include <stdio.h>
 
 extern BOOL g_AutoChat;					//自动聊天
 
+
+//微信日志输出
+#define WxLogOffset         0x620050	
+#define WxLogRealCallOffset 0x13437C1	
+DWORD dwBase = GetWeChatWinBase();
+DWORD dwLogRetAddr = dwBase + WxLogOffset + 5;	       //返回地址
+DWORD dwLogRealCallAddr = dwBase + WxLogRealCallOffset;	//覆盖的call
+char  wxLogMsgBuf[10240] = { 0 };
+
+void DebugLogPrint(DWORD eax)
+{
+	if (eax == 0) {
+		return;
+	}
+
+	sprintf_s(wxLogMsgBuf, 10240, "%s", (char*)((LPVOID*)eax));
+	wchar_t* ret = UTF8ToUnicode(wxLogMsgBuf);
+	DebugLog(ret);
+	if (ret != nullptr) {
+		free(ret);
+	}
+}
+
+void  __declspec(naked) HookLogFun()
+{
+	__asm
+	{
+		call dwLogRealCallAddr;
+
+		pushad;
+		pushfd;
+		push eax;
+		call DebugLogPrint;
+		add esp, 0x4;
+		popfd;
+		popad;
+
+		jmp dwLogRetAddr;
+	}
+}
+
+void HookWxLog()
+{
+	DebugLog(L"InitWindow...HookWxLog");
+	HookAnyAddress(dwBase + WxLogOffset, HookLogFun);
+}
+
+//
 
 
 //************************************************************
@@ -25,54 +74,58 @@ extern BOOL g_AutoChat;					//自动聊天
 //************************************************************
 void InitWindow(HMODULE hModule)
 {
+	DebugLog(L"InitWindow...IsWxVersionValid?");
 	//检查当前微信版本
 	if (IsWxVersionValid())
 	{
 		//获取WeChatWin的基址
 		DWORD dwWeChatWinAddr = (DWORD)GetModuleHandle(L"WeChatWin.dll");
-	
-		//检测微信是否登陆
-		DWORD dwIsLogin = dwWeChatWinAddr + LoginSign_Offset;
-		if (*(DWORD*)dwIsLogin == 0)	//等于0说明微信未登录
-		{
-			//开线程持续检测微信登陆状态
-			HANDLE hThread= CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CheckIsLogin, 0, 0, NULL);
-			CloseHandle(hThread);
+		HookWxLog();
+		////检测微信是否登陆
+		//DWORD dwIsLogin = dwWeChatWinAddr + LoginSign_Offset;
+		//if (*(DWORD*)dwIsLogin == 0)	//等于0说明微信未登录
+		//{
+		//	//开线程持续检测微信登陆状态
+		//	HANDLE hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CheckIsLogin, 0, 0, NULL);
+		//	if (hThread != 0) {
+		//		CloseHandle(hThread);
+		//	}
 
-			//HOOK获取好友列表的call
-			HookGetFriendList();
-			
-			//HOOK接收消息
-			HookChatRecord();
-			
-			//防撤回
-			AntiRevoke();
-			
-			//HOOK提取表情 
-			//HookExtractExpression();
+		//	//HOOK获取好友列表的call
+		//	HookGetFriendList();
 
-			//注册窗口
-			RegisterWindow(hModule);
-		}
-		else
-		{
-			//如果微信已经登陆 发送消息给客户端
-			HWND hLogin = FindWindow(NULL, L"Login");
-			if (hLogin == NULL)
-			{
-				OutputDebugStringA("未查找到Login窗口");
-				return;
-			}
-			COPYDATASTRUCT login_msg;
-			login_msg.dwData = WM_AlreadyLogin;
-			login_msg.lpData = NULL;
-			login_msg.cbData = 0;
-			//发送消息给控制端
-			SendMessage(hLogin, WM_COPYDATA, (WPARAM)hLogin, (LPARAM)&login_msg);
-		}
+		//	//HOOK接收消息
+		//	HookChatRecord();
+
+		//	//防撤回
+		//	AntiRevoke();
+
+		//	//HOOK提取表情 
+		//	//HookExtractExpression();
+
+		//	//注册窗口
+		//	RegisterWindow(hModule);
+		//}
+		//else
+		//{
+		//	//如果微信已经登陆 发送消息给客户端
+		//	HWND hLogin = FindWindow(NULL, L"Login");
+		//	if (hLogin == NULL)
+		//	{
+		//		DebugLog("未查找到Login窗口");
+		//		return;
+		//	}
+		//	COPYDATASTRUCT login_msg;
+		//	login_msg.dwData = WM_AlreadyLogin;
+		//	login_msg.lpData = NULL;
+		//	login_msg.cbData = 0;
+		//	//发送消息给控制端
+		//	SendMessage(hLogin, WM_COPYDATA, (WPARAM)hLogin, (LPARAM)&login_msg);
+		//}
 	}
 	else
 	{
+		DebugLog(L"WxVersion not Valid...");
 		MessageBoxA(NULL, "当前微信版本不匹配，请下载WeChat 3.2.1.154", "错误", MB_OK);
 	}
 
@@ -143,12 +196,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	if (Message == WM_COPYDATA)
 	{
-		COPYDATASTRUCT *pCopyData = (COPYDATASTRUCT*)lParam;
+		COPYDATASTRUCT* pCopyData = (COPYDATASTRUCT*)lParam;
 		//接收通用消息结构体
-		MessageUnion *msg = (MessageUnion*)pCopyData->lpData;
+		MessageUnion* msg = (MessageUnion*)pCopyData->lpData;
 		switch (pCopyData->dwData)
 		{
-		//显示二维码
+			//显示二维码
 		case WM_ShowQrPicture:
 		{
 			GotoQrCode();
@@ -165,7 +218,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
 		case WM_SendTextMessage:
 		{
 			SendTextMessage(msg->genericmsg.msgdata1, msg->genericmsg.msgdata2);
-			
+
 		}
 		break;
 		//发送文件消息

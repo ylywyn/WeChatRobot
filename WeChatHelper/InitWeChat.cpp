@@ -16,7 +16,7 @@
 BOOL IsWxVersionValid()
 {
 	DWORD wxBaseAddress = (DWORD)GetModuleHandle(TEXT("WeChatWin.dll"));
-	const string wxVersoin = "3.2.1.154";
+	const string wxVersoin = "3.4.0.38";
 
 	WCHAR VersionFilePath[MAX_PATH];
 	if (GetModuleFileName((HMODULE)wxBaseAddress, VersionFilePath, MAX_PATH) == 0)

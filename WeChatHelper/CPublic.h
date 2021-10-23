@@ -13,4 +13,4 @@ wstring UTF8ToUnicode2(const char* str);
 
 
 void DebugCode(LPVOID pAddress);
-void DebugLog(LPCSTR lpOutputString);
+void DebugLog(LPCWSTR lpOutputString);

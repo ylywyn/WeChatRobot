@@ -93,9 +93,9 @@ void DebugCode(LPVOID pAddress)
 	MessageBoxA(0, buff, "µØÖ·", 0);
 }
 
-void DebugLog(LPCSTR lpOutputString)
+void DebugLog(LPCWSTR lpOutputString)
 {
-	string buf("WeChatWinDebug==>");
-	buf = buf + lpOutputString;
-	OutputDebugStringA(buf.c_str());
+	wstring buf(L"WeChatWinDebug==>");
+	buf += lpOutputString;
+	OutputDebugString(buf.c_str());
 }
