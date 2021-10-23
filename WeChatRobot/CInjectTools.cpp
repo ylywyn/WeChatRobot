@@ -146,6 +146,7 @@ DWORD ProcessNameFindPID(const char* ProcessName)
 //************************************************************
 BOOL InjectDll(HANDLE& wxPid)
 {
+	OutputDebugStringA("WeChatWinDebug==>Begin InjectDll(In Exe)");
 	//获取当前工作目录下的dll
 	char szPath[MAX_PATH] = { 0 };
 	char* buffer = NULL;

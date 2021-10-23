@@ -4,25 +4,27 @@
 
 
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+BOOL APIENTRY DllMain(HMODULE hModule,
+	DWORD  ul_reason_for_call,
+	LPVOID lpReserved
+)
 {
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
+	switch (ul_reason_for_call)
+	{
+	case DLL_PROCESS_ATTACH:
 	{
 		//启动线程来初始化界面
 		HANDLE hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)InitWindow, hModule, 0, NULL);
-		CloseHandle(hThread);
+		if (hThread != 0) {
+			CloseHandle(hThread);
+		}
 	}
+	break;
+	case DLL_THREAD_ATTACH:
+	case DLL_THREAD_DETACH:
+	case DLL_PROCESS_DETACH:
 		break;
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        break;
-    }
-    return TRUE;
+	}
+	return TRUE;
 }
 

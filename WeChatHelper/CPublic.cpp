@@ -17,7 +17,7 @@ void HookAnyAddress(DWORD dwHookAddr, LPVOID dwJmpAddress)
 	jmpCode[0] = 0xE9;
 
 	//计算偏移
-	*(DWORD*)& jmpCode[1] = (DWORD)dwJmpAddress - dwHookAddr - 5;
+	*(DWORD*)&jmpCode[1] = (DWORD)dwJmpAddress - dwHookAddr - 5;
 
 	// 保存以前的属性用于还原
 	DWORD OldProtext = 0;
@@ -56,12 +56,12 @@ DWORD GetWeChatWinBase()
 // 参    数: str 需要转换的字符串
 // 返 回 值: wchar_t 返回的字符串 
 //************************************************************
-wchar_t * UTF8ToUnicode(const char* str)
+wchar_t* UTF8ToUnicode(const char* str)
 {
 	int    textlen = 0;
-	wchar_t * result;
+	wchar_t* result;
 	textlen = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-	result = (wchar_t *)malloc((textlen + 1) * sizeof(wchar_t));
+	result = (wchar_t*)malloc((textlen + 1) * sizeof(wchar_t));
 	memset(result, 0, (textlen + 1) * sizeof(wchar_t));
 	MultiByteToWideChar(CP_UTF8, 0, str, -1, (LPWSTR)result, textlen);
 	return    result;
@@ -75,7 +75,7 @@ wstring UTF8ToUnicode2(const char* str)
 	int textlen = 0;
 	wchar_t* result;
 	textlen = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-	result = (wchar_t *)malloc((textlen + 1) * sizeof(wchar_t));
+	result = (wchar_t*)malloc((textlen + 1) * sizeof(wchar_t));
 	memset(result, 0, (textlen + 1) * sizeof(wchar_t));
 	MultiByteToWideChar(CP_UTF8, 0, str, -1, (LPWSTR)result, textlen);
 
@@ -91,4 +91,11 @@ void DebugCode(LPVOID pAddress)
 	char buff[40] = { 0 };
 	sprintf_s(buff, "%p", pAddress);
 	MessageBoxA(0, buff, "地址", 0);
+}
+
+void DebugLog(LPCSTR lpOutputString)
+{
+	string buf("WeChatWinDebug==>");
+	buf = buf + lpOutputString;
+	OutputDebugStringA(buf.c_str());
 }
