@@ -1,0 +1,7 @@
+.vs
+.vscode
+.cache
+node_modules
+dist
+Debug
+Release
