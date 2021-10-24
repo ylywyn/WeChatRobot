@@ -41,9 +41,14 @@ void HookAnyAddress(DWORD dwHookAddr, LPVOID dwJmpAddress)
 // 参    数: void
 // 返 回 值: void 
 //************************************************************
+DWORD g_WeChatWinBase = 0;
 DWORD GetWeChatWinBase()
 {
-	return (DWORD)GetModuleHandle(TEXT("WeChatWin.dll"));
+	if (g_WeChatWinBase == 0) {
+		g_WeChatWinBase = (DWORD)GetModuleHandle(TEXT("WeChatWin.dll"));
+	}
+
+	return  g_WeChatWinBase;
 }
 
 

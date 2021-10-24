@@ -295,7 +295,7 @@ void DealWithMsg(LPVOID Context)
 			else if (StrStrW(tempcontent, L"<type>5</type>"))
 			{
 				//邀请入群的链接
-				if (fullmessgaedata.find(L"<![CDATA[邀请你加入群聊]]></title>") != wstring::npos&&fullmessgaedata.find(L"<url><![CDATA[") != wstring::npos)
+				if (fullmessgaedata.find(L"<![CDATA[邀请你加入群聊]]></title>") != wstring::npos && fullmessgaedata.find(L"<url><![CDATA[") != wstring::npos)
 				{
 					memcpy(msg->sztype, L"群邀请", sizeof(L"群邀请"));
 					swprintf_s(msg->content, L"%s", L"收到群邀请,请在手机上查看");
@@ -393,7 +393,7 @@ void DealWithMsg(LPVOID Context)
 		OutputDebugStringA("聊天记录出异常了");
 	}
 
-	
+
 }
 
 
@@ -417,32 +417,32 @@ void __stdcall SendWxMessage(DWORD r_eax)
 		ChatMessageData* msg = new ChatMessageData;
 		//取出消息类型
 		msg->dwtype = *((DWORD*)(r_eax + MsgTypeOffset));
-	
+
 		//取出消息内容
-		LPVOID pContent = *((LPVOID *)(r_eax + MsgContentOffset));
+		LPVOID pContent = *((LPVOID*)(r_eax + MsgContentOffset));
 		swprintf_s(msg->content, L"%s", (wchar_t*)pContent);
-	
-	
+
+
 		//取出微信ID/群ID
-		LPVOID pWxid = *((LPVOID *)(r_eax + WxidOffset));
+		LPVOID pWxid = *((LPVOID*)(r_eax + WxidOffset));
 		swprintf_s(msg->wxid, L"%s", (wchar_t*)pWxid);
-	
+
 		if (StrStrW(msg->wxid, L"gh_"))
 		{
 			return;
 		}
-	
-	
-	
-		//取出消息发送者
-		LPVOID pSender = *((LPVOID *)(r_eax + GroupMsgSenderOffset));
-		swprintf_s(msg->sender, L"%s", (wchar_t*)pSender);
-		
+
+
 
 		//取出消息发送者
-		LPVOID pSource = *((LPVOID *)(r_eax + MsgSourceOffset));
+		LPVOID pSender = *((LPVOID*)(r_eax + GroupMsgSenderOffset));
+		swprintf_s(msg->sender, L"%s", (wchar_t*)pSender);
+
+
+		//取出消息发送者
+		LPVOID pSource = *((LPVOID*)(r_eax + MsgSourceOffset));
 		swprintf_s(msg->source, L"%s", (wchar_t*)pSource);
-	
+
 		//创建线程处理消息
 		HANDLE hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DealWithMsg, msg, 0, NULL);
 		CloseHandle(hThread);
@@ -451,7 +451,7 @@ void __stdcall SendWxMessage(DWORD r_eax)
 	{
 		OutputDebugStringA("接收消息异常了....");
 	}
-	
+
 
 }
 
@@ -478,3 +478,103 @@ std::wstring GetMsgByAddress(DWORD memAddress)
 }
 
 
+
+
+//Hook微信Send Call
+struct wxMsg
+{
+	const wchar_t* msg;
+	int len;
+	int cap;
+	char buff[0x34];
+};
+
+#define WxSendMsgOffset          0x149EF4	
+#define WxRealSendMsgOffset      0x42D200	
+
+DWORD dwDllBase = GetWeChatWinBase();
+DWORD dwSendMsgRetAddr = dwDllBase + WxSendMsgOffset + 5;	       //返回地址
+DWORD dwSendMsgRealCallAddr = dwDllBase + WxRealSendMsgOffset;	   //覆盖的call
+
+
+void MySendMsg(const wchar_t* wxid, const wchar_t* msg)
+{
+	wxMsg id = { 0 };
+	id.msg = wxid;
+	id.len = wcslen(wxid);
+	id.cap = wcslen(wxid) * 2;
+	char* pWxid = (char*)&id.msg;
+
+	wxMsg text = { 0 };
+	text.msg = msg;
+	text.len = wcslen(msg);
+	text.cap = wcslen(msg) * 2;
+	char* pWxmsg = (char*)&text.msg;
+
+	char buff[0x81C] = { 0 };
+
+	__asm
+	{
+		pushad;
+		pushfd;
+
+		push 0x1;
+
+		mov eax, 0;
+		push eax;
+
+		mov edi, pWxmsg;
+		push edi;
+
+		mov edx, pWxid;
+
+		lea ecx, buff;
+
+		call dwSendMsgRealCallAddr;
+		add esp, 0xC;
+
+		popfd;
+		popad;
+	}
+}
+
+
+
+void __stdcall HookSendMsgEx(DWORD did, DWORD dmsg)
+{
+	try
+	{
+		//MySendMsg(L"weixin", L"hello,yangl");
+	}
+	catch (...)
+	{
+		DebugLog(L"发送消息异常了....");
+	}
+}
+//void  __declspec(naked) HookSendMsgFun()
+__declspec(naked)  void HookSendMsgFun()
+{
+	__asm
+	{
+		pushad;
+		pushfd;
+
+		push edi;
+		push edx;
+		call  HookSendMsgEx;
+
+		popfd;
+		popad;
+
+		call dwSendMsgRealCallAddr;
+		jmp dwSendMsgRetAddr;
+	}
+}
+
+void HookSendMsg()
+{
+	DebugLog(L"Begin...HookSendMsg");
+	HookAnyAddress(dwDllBase + WxSendMsgOffset, HookSendMsgFun);
+}
+
+//
