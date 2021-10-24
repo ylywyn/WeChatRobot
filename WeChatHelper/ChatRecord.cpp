@@ -546,7 +546,6 @@ void MySendMsg(const wchar_t* wxid, const wchar_t* msg)
 
 void __stdcall HookSendMsgEx(DWORD did, DWORD dmsg)
 {
-
 	DebugLog(L"=====HookSendMsgEx========");
 
 	wchar_t msg[1024] = { 0 };
@@ -554,10 +553,14 @@ void __stdcall HookSendMsgEx(DWORD did, DWORD dmsg)
 	swprintf_s(msg, L"%s", (wchar_t*)pContent);
 	DebugLog(msg);
 
+
 	wchar_t sender[1024] = { 0 };
 	LPVOID pSender = *((LPVOID*)(did));
 	swprintf_s(sender, L"%s", (wchar_t*)pSender);
 	DebugLog(sender);
+
+	//wait fix: 先把接收人改成一个不存在的 
+	*(wchar_t*)pSender = L'*';
 
 	MySendMsg(sender, msg);
 }

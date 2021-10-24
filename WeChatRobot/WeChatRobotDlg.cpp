@@ -211,18 +211,18 @@ BOOL CWeChatRobotDlg::OnCopyData(CWnd* pWnd, COPYDATASTRUCT* pCopyDataStruct)
 //***********************************************************
 void CWeChatRobotDlg::OnBnClickedShowQrpic()
 {
-	//查找窗口
-	CWnd *pWnd = CWnd::FindWindow(NULL, L"WeChatHelper");
-	COPYDATASTRUCT show_qrpic;
-	show_qrpic.dwData = WM_ShowQrPicture;
-	show_qrpic.cbData = 0;
-	show_qrpic.lpData = NULL;
-	//发送消息
-	pWnd->SendMessage(WM_COPYDATA, NULL, (LPARAM)&show_qrpic);
+	////查找窗口
+	//CWnd *pWnd = CWnd::FindWindow(NULL, L"WeChatHelper");
+	//COPYDATASTRUCT show_qrpic;
+	//show_qrpic.dwData = WM_ShowQrPicture;
+	//show_qrpic.cbData = 0;
+	//show_qrpic.lpData = NULL;
+	////发送消息
+	//pWnd->SendMessage(WM_COPYDATA, NULL, (LPARAM)&show_qrpic);
 
-	Sleep(200);
-	//显示图片
-	ShowPicture();
+	//Sleep(200);
+	////显示图片
+	//ShowPicture();
 }
 
 
