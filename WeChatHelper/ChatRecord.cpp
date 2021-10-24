@@ -502,16 +502,18 @@ void MySendMsg(const wchar_t* wxid, const wchar_t* msg)
 	wxMsg id = { 0 };
 	id.msg = wxid;
 	id.len = wcslen(wxid);
-	id.cap = wcslen(wxid) * 2;
+	id.cap = id.len * 2;
 	char* pWxid = (char*)&id.msg;
 
 	wxMsg text = { 0 };
 	text.msg = msg;
 	text.len = wcslen(msg);
-	text.cap = wcslen(msg) * 2;
+	text.cap = text.len * 2;
 	char* pWxmsg = (char*)&text.msg;
 
 	char buff[0x81C] = { 0 };
+
+	DebugLog(L"=====MySendMsg========");
 
 	__asm
 	{
@@ -536,22 +538,30 @@ void MySendMsg(const wchar_t* wxid, const wchar_t* msg)
 		popfd;
 		popad;
 	}
+
+	DebugLog(L"=====MySendMsg End========");
 }
 
 
 
 void __stdcall HookSendMsgEx(DWORD did, DWORD dmsg)
 {
-	try
-	{
-		//MySendMsg(L"weixin", L"hello,yangl");
-	}
-	catch (...)
-	{
-		DebugLog(L"发送消息异常了....");
-	}
+
+	DebugLog(L"=====HookSendMsgEx========");
+
+	wchar_t msg[1024] = { 0 };
+	LPVOID pContent = *((LPVOID*)(dmsg));
+	swprintf_s(msg, L"%s", (wchar_t*)pContent);
+	DebugLog(msg);
+
+	wchar_t sender[1024] = { 0 };
+	LPVOID pSender = *((LPVOID*)(did));
+	swprintf_s(sender, L"%s", (wchar_t*)pSender);
+	DebugLog(sender);
+
+	MySendMsg(sender, msg);
 }
-//void  __declspec(naked) HookSendMsgFun()
+
 __declspec(naked)  void HookSendMsgFun()
 {
 	__asm
