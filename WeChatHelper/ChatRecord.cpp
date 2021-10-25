@@ -543,7 +543,6 @@ void MySendMsg(const wchar_t* wxid, const wchar_t* msg)
 }
 
 
-
 void __stdcall HookSendMsgEx(DWORD did, DWORD dmsg)
 {
 	DebugLog(L"=====HookSendMsgEx========");
@@ -565,20 +564,56 @@ void __stdcall HookSendMsgEx(DWORD did, DWORD dmsg)
 	MySendMsg(sender, msg);
 }
 
+
+//__declspec(naked)  void HookSendMsgFun()
+//{
+//	__asm
+//	{
+//		pushad;
+//		pushfd;
+//
+//		push edi;
+//		push edx;
+//		call  HookSendMsgEx;
+//
+//		popfd;
+//		popad;
+//
+//		call dwSendMsgRealCallAddr;
+//		jmp dwSendMsgRetAddr;
+//	}
+//}
+
+//全局保存, 不能破坏当时的堆栈 
+wchar_t msg[4096] = { 0 };
+wxMsg text = { 0 };
+char* pWxmsg = nullptr;
+
 __declspec(naked)  void HookSendMsgFun()
 {
 	__asm
 	{
 		pushad;
 		pushfd;
+	}
 
-		push edi;
-		push edx;
-		call  HookSendMsgEx;
+	swprintf_s(msg, L"%s", (wchar_t*)L"hello");
+	text.msg = msg;
+	text.len = wcslen(msg);
+	text.cap = text.len * 2;
+	pWxmsg = (char*)&text.msg;
 
+	__asm
+	{
 		popfd;
 		popad;
+	}
 
+	__asm
+	{
+		pop edi;
+		mov edi, pWxmsg;
+		push edi;
 		call dwSendMsgRealCallAddr;
 		jmp dwSendMsgRetAddr;
 	}
