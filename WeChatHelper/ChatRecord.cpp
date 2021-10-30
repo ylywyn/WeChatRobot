@@ -23,11 +23,14 @@ BOOL isSendTuLing = FALSE;	//是否已经发给了机器人
 wchar_t tempwxid[50];	//存放微信ID
 
 
+#define WxRecvMsgOffset          0x3687AC
+#define WxRealRecvMsgOffset      0x405800
+DWORD dwDllBase = GetWeChatWinBase();
 //返回地址
-DWORD RetkReciveMsgAddr = GetWeChatWinBase() + WxReciveMessage + 5;
+DWORD RetkReciveMsgAddr = dwDllBase + WxRecvMsgOffset + 5;
 
 //被覆盖的call的地址
-DWORD OverReciveMsgCallAddr = GetWeChatWinBase() + WxReciveMessageCall;
+DWORD OverReciveMsgCallAddr = dwDllBase + WxRealRecvMsgOffset;
 
 
 //************************************************************
@@ -38,9 +41,9 @@ DWORD OverReciveMsgCallAddr = GetWeChatWinBase() + WxReciveMessageCall;
 // 参    数: void
 // 返 回 值: void 
 //************************************************************
-void HookChatRecord()
+void HookRecvMsg()
 {
-	HookAnyAddress(GetWeChatWinBase() + WxReciveMessage, RecieveWxMesage);
+	HookAnyAddress(dwDllBase + WxRecvMsgOffset, RecieveWxMesage);
 }
 
 
@@ -59,8 +62,12 @@ __declspec(naked) void RecieveWxMesage()
 	__asm
 	{
 		pushad;
-		push eax;
+		pushfd;
+
+		push esi;
 		call SendWxMessage;
+
+		popfd;
 		popad;
 		//调用被覆盖的call
 		call OverReciveMsgCallAddr;
@@ -408,6 +415,7 @@ void DealWithMsg(LPVOID Context)
 //************************************************************
 void __stdcall SendWxMessage(DWORD r_eax)
 {
+	DebugLog(L"RecieveWxMesage==================================================");
 	if (IsBadReadPtr((void*)r_eax, 4) || IsBadReadPtr((void*)(r_eax + MsgTypeOffset), 4) || IsBadReadPtr((void*)(r_eax + MsgContentOffset), 4) || IsBadReadPtr((void*)(r_eax + WxidOffset), 4) || IsBadReadPtr((void*)(r_eax + GroupMsgSenderOffset), 4))
 	{
 		return;
@@ -416,36 +424,42 @@ void __stdcall SendWxMessage(DWORD r_eax)
 	{
 		ChatMessageData* msg = new ChatMessageData;
 		//取出消息类型
-		msg->dwtype = *((DWORD*)(r_eax + MsgTypeOffset));
+		msg->dwtype = *((DWORD*)(r_eax + 0x38));
+		DebugLog(L"RecieveWxMesage==================================================type");
 
 		//取出消息内容
-		LPVOID pContent = *((LPVOID*)(r_eax + MsgContentOffset));
+		LPVOID pContent = *((LPVOID*)(r_eax + 0x70));
 		swprintf_s(msg->content, L"%s", (wchar_t*)pContent);
-
+		DebugLog(L"RecieveWxMesage==================================================content");
+		DebugLog(msg->content);
 
 		//取出微信ID/群ID
-		LPVOID pWxid = *((LPVOID*)(r_eax + WxidOffset));
-		swprintf_s(msg->wxid, L"%s", (wchar_t*)pWxid);
+		//LPVOID pWxid = *((LPVOID*)(r_eax + WxidOffset));
+		//swprintf_s(msg->wxid, L"%s", (wchar_t*)pWxid);
 
-		if (StrStrW(msg->wxid, L"gh_"))
-		{
-			return;
-		}
+		//if (StrStrW(msg->wxid, L"gh_"))
+		//{
+		//	return;
+		//}
 
 
 
 		//取出消息发送者
-		LPVOID pSender = *((LPVOID*)(r_eax + GroupMsgSenderOffset));
+		LPVOID pSender = *((LPVOID*)(r_eax + 0x48));
 		swprintf_s(msg->sender, L"%s", (wchar_t*)pSender);
+		DebugLog(L"RecieveWxMesage==================================================sender");
+		DebugLog(msg->sender);
 
 
 		//取出消息发送者
-		LPVOID pSource = *((LPVOID*)(r_eax + MsgSourceOffset));
-		swprintf_s(msg->source, L"%s", (wchar_t*)pSource);
+		//LPVOID pSource = *((LPVOID*)(r_eax + MsgSourceOffset));
+		//swprintf_s(msg->source, L"%s", (wchar_t*)pSource);
+		//DebugLog(L"RecieveWxMesage==================================================4");
 
 		//创建线程处理消息
-		HANDLE hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DealWithMsg, msg, 0, NULL);
-		CloseHandle(hThread);
+		//HANDLE hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DealWithMsg, msg, 0, NULL);
+		//CloseHandle(hThread);
+		delete msg;
 	}
 	catch (...)
 	{
@@ -492,7 +506,7 @@ struct wxMsg
 #define WxSendMsgOffset          0x149EF4	
 #define WxRealSendMsgOffset      0x42D200	
 
-DWORD dwDllBase = GetWeChatWinBase();
+
 DWORD dwSendMsgRetAddr = dwDllBase + WxSendMsgOffset + 5;	       //返回地址
 DWORD dwSendMsgRealCallAddr = dwDllBase + WxRealSendMsgOffset;	   //覆盖的call
 

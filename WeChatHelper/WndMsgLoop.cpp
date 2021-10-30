@@ -84,7 +84,7 @@ void InitWindow(HMODULE hModule)
 		DebugLog(L"InitWindow...MySendMsg");
 		//MySendMsg(L"weixin", L"hello,yangl");
 		HookSendMsg();
-
+		HookRecvMsg();
 		////检测微信是否登陆
 		//DWORD dwIsLogin = dwWeChatWinAddr + LoginSign_Offset;
 		//if (*(DWORD*)dwIsLogin == 0)	//等于0说明微信未登录
