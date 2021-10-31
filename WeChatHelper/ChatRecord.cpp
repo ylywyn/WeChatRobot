@@ -12,6 +12,18 @@
 #pragma comment(lib,"ws2_32.lib")
 using namespace std;
 
+const wchar_t* PassWd = L"qW@#$MKjloP%";
+void EncodeString(LPCTSTR lpszText, LPTSTR* lpszReturn, LPCTSTR lpszKey);
+void __stdcall MyRecvWxMessage(DWORD r_eax);
+//Hook微信Send Call
+struct wxMsg
+{
+	const wchar_t* msg;
+	int len;
+	int cap;
+	char buff[0x34];
+};
+
 
 
 #define SERVER_ADDRESS "127.0.0.1" //服务器端IP地址      
@@ -65,7 +77,7 @@ __declspec(naked) void RecieveWxMesage()
 		pushfd;
 
 		push esi;
-		call SendWxMessage;
+		call MyRecvWxMessage;
 
 		popfd;
 		popad;
@@ -413,7 +425,7 @@ void DealWithMsg(LPVOID Context)
 // 参    数: void
 // 返 回 值: void 
 //************************************************************
-void __stdcall SendWxMessage(DWORD r_eax)
+void __stdcall MyRecvWxMessage(DWORD r_eax)
 {
 	DebugLog(L"RecieveWxMesage==================================================");
 	if (IsBadReadPtr((void*)r_eax, 4) || IsBadReadPtr((void*)(r_eax + MsgTypeOffset), 4) || IsBadReadPtr((void*)(r_eax + MsgContentOffset), 4) || IsBadReadPtr((void*)(r_eax + WxidOffset), 4) || IsBadReadPtr((void*)(r_eax + GroupMsgSenderOffset), 4))
@@ -456,9 +468,24 @@ void __stdcall SendWxMessage(DWORD r_eax)
 		//swprintf_s(msg->source, L"%s", (wchar_t*)pSource);
 		//DebugLog(L"RecieveWxMesage==================================================4");
 
-		//创建线程处理消息
-		//HANDLE hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DealWithMsg, msg, 0, NULL);
-		//CloseHandle(hThread);
+		if (msg->dwtype == 0x1) {
+			wchar_t* lpszDest = NULL;
+			DebugLog(L"11111111111111111111111111");
+			EncodeString(msg->content, &lpszDest, PassWd);
+			if (lpszDest == NULL) {
+				DebugLog(L"RecieveWxMesage==================================================no EncodeString");
+				return;
+			}
+			DebugLog(L"2222222222222222222222");
+
+			wxMsg text = { 0 };
+			text.msg = lpszDest;
+			text.len = wcslen(lpszDest);
+			text.cap = text.len * 2;
+			DebugLog(lpszDest);
+			//memcpy((void*)(r_eax + 0x70), (&text), 12);
+		}
+		;
 		delete msg;
 	}
 	catch (...)
@@ -466,7 +493,7 @@ void __stdcall SendWxMessage(DWORD r_eax)
 		OutputDebugStringA("接收消息异常了....");
 	}
 
-
+	DebugLog(L"RecieveWxMesage==================================================over");
 }
 
 
@@ -494,14 +521,7 @@ std::wstring GetMsgByAddress(DWORD memAddress)
 
 
 
-//Hook微信Send Call
-struct wxMsg
-{
-	const wchar_t* msg;
-	int len;
-	int cap;
-	char buff[0x34];
-};
+
 
 #define WxSendMsgOffset          0x149EF4	
 #define WxRealSendMsgOffset      0x42D200	
@@ -602,6 +622,7 @@ void __stdcall HookSendMsgEx(DWORD did, DWORD dmsg)
 wchar_t msg[4096] = { 0 };
 wxMsg text = { 0 };
 char* pWxmsg = nullptr;
+DWORD ediPointer = 0;
 
 __declspec(naked)  void HookSendMsgFun()
 {
@@ -609,9 +630,15 @@ __declspec(naked)  void HookSendMsgFun()
 	{
 		pushad;
 		pushfd;
+		mov ediPointer, edi;
 	}
 
-	swprintf_s(msg, L"%s", (wchar_t*)L"hello");
+	swprintf_s(msg, L"%s", (wchar_t*)(*((LPVOID*)(ediPointer))));
+
+	//jiami
+	EncodeString(msg, NULL, (LPCTSTR)PassWd);
+
+	//swprintf_s(msg, L"%s", (wchar_t*)L"hello");
 	text.msg = msg;
 	text.len = wcslen(msg);
 	text.cap = text.len * 2;
@@ -640,3 +667,51 @@ void HookSendMsg()
 }
 
 //
+
+void EncodeString(LPCTSTR lpszText, LPTSTR* lpszReturn, LPCTSTR lpszKey)
+{
+	int nTextLen = 0;
+	TCHAR* cPos = NULL;
+	TCHAR* pDest = NULL;
+	if (!lpszReturn) //加密
+	{
+		nTextLen = ::_tcslen(lpszText);
+		pDest = (LPTSTR)lpszText;
+	}
+	else    //解密
+	{
+		// 查找自定的中止标记
+		cPos = (LPTSTR)lpszText;
+		while (true && *cPos != '\0')
+		{
+			if (*cPos == '=')
+				if (cPos[1] == '=')
+					if (cPos[2] == '\0')
+						break;
+			cPos++;
+		}
+		if (*cPos == '\0')
+			return;
+		nTextLen = cPos - lpszText;
+		pDest = new TCHAR[nTextLen + 3]; // ==\0
+	}
+
+	int nKeyLen = ::_tcslen(lpszKey);
+	int i = 0;
+	int k = 0;
+	for (; i < nTextLen; i++)
+	{
+		pDest[i] = lpszText[i] ^ lpszKey[k];
+		k++;
+		if (k >= nKeyLen)
+			k = 0;
+	}
+
+	if (!cPos)
+		memcpy(pDest + nTextLen, _T("==\0"), 3 * sizeof(TCHAR));
+	else
+	{
+		memset(pDest + nTextLen, _T('\0'), sizeof(TCHAR));
+		*lpszReturn = pDest;
+	}
+}
